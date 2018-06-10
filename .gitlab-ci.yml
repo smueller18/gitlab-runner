@@ -12,3 +12,20 @@ deploy:
     - docker push "$IMAGE"
   only:
     - master
+
+trigger:
+  stage: deploy
+  script:
+    - docker pull gitlab/gitlab-runner:alpine
+    - docker pull smueller18/gitlab-runner
+    - export VERSION_GITLAB=`docker run --rm --entrypoint "/usr/bin/gitlab-runner" gitlab/gitlab-runner:alpine -v|head -1`
+    - export VERSION_SMUELLER18=`docker run --rm --entrypoint "/usr/bin/gitlab-runner" smueller18/gitlab-runner -v|head -1`
+    - >
+        if [ "$VERSION_GITLAB" != "$VERSION_SMUELLER18" ]; then
+            apk --no-cache add curl
+            curl -sS -H "Content-Type: application/json" --data '{"docker_tag": "latest"}' \
+                 -X POST https://registry.hub.docker.com/u/smueller18/gitlab-runner/trigger/$DOCKERHUB_TRIGGER_TOKEN/
+        fi
+  only:
+    variables:
+      - $DOCKERHUB_TRIGGER_TOKEN
